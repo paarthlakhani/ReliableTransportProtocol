@@ -91,7 +91,7 @@ public class StudentNetworkSimulator extends NetworkSimulator
      * 
      * Part 2:
      * You are in part2 now. Do loss of packets first. In-depth understanding
-     * 
+     * Do corruption of packets.
      * 
      */
 	Packet p;
@@ -100,10 +100,6 @@ public class StudentNetworkSimulator extends NetworkSimulator
 	static byte expectedAckNum;
 	static boolean isAcknowledged;
 	static int packetNum; // For debugging purposes.
-	
-	// expected sequence number at B.
-	static byte expectSeqB;
-	static byte expectAckB;
     
 	// Add any necessary class variables here.  Remember, you cannot use
     // these variables to send messages error free!  They can only hold
@@ -190,9 +186,6 @@ public class StudentNetworkSimulator extends NetworkSimulator
     {
     	if(!isAcknowledged)
     	{
-    		/*System.out.println("Packet has been lost");
-        	System.out.println("I am resending the packet");
-        	System.out.println("Packet number is:" + packetNum);*/
     		this.startTimer(0, 15);
     		Packet packetSend = new Packet(p);
     		this.toLayer3(0, packetSend);
@@ -221,34 +214,7 @@ public class StudentNetworkSimulator extends NetworkSimulator
     {
     	this.toLayer5(1, packet.getPayload());
     	Packet packetSend;
-    	
-    	/*
-    	System.out.println("Packet Statistics at receiver");
-    	System.out.println(p.getAcknum());
-    	System.out.println(p.getChecksum());
-    	System.out.println(p.getPayload());
-    	System.out.println(p.getSeqnum());
-    	System.out.print("Ending of the packet receiver");
-    	*/
-    	
     	packetSend = new Packet(packet.getSeqnum(), packet.getAcknum(), packet.getChecksum(),"Successful Receive");
-    	
-    	
-    	/*if(expectSeqB == packet.getSeqnum() &&  expectAckB == packet.getAcknum())
-    	{
-    		// Send an acknowledgement packet; you have to check about checksum later.
-    		packetSend = new Packet(expectSeqB, expectAckB, packet.getChecksum(),"Successful Receive");
-    		
-    		if(expectSeqB == 0)
-    			expectSeqB = 1;	
-    		else expectSeqB = 0;
-    		expectAckB = expectSeqB;
-    	}
-    	else
-    	{
-    		// Send previous acknowledgement
-    		packetSend = new Packet(expectSeqB, expectAckB, packet.getChecksum(),"unsuccessful Receive");
-    	}*/
 		this.toLayer3(1, packetSend);
     }
     
@@ -258,7 +224,5 @@ public class StudentNetworkSimulator extends NetworkSimulator
     // of entity B).
     protected void bInit()
     {
-    	expectSeqB = 0;
-    	expectAckB = 0;
     }
 }
