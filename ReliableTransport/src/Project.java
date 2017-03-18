@@ -207,5 +207,6 @@ public class Project
                                                 trace, seed);
                                                 
         simulator.runSimulator();
+        simulator.printStatistics();
     }
 }

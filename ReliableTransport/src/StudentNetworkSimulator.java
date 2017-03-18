@@ -100,7 +100,13 @@ public class StudentNetworkSimulator extends NetworkSimulator
 	static byte expectedAckNum;
 	static boolean isAcknowledged;
 	static int packetNum; // For debugging purposes.
-    
+	static int lostPackets;
+	static int packetsLostHost;
+	static double timerInterrupt; // Initial timer Interrupt
+	static double increaseTimerInterrupt;
+	static double beforeSendTime;
+	
+	static int expectedSeqB;
 	// Add any necessary class variables here.  Remember, you cannot use
     // these variables to send messages error free!  They can only hold
     // state information for A or B.
@@ -116,10 +122,14 @@ public class StudentNetworkSimulator extends NetworkSimulator
 			byte charAscii = (byte)payloadCharacters[i];
 			checksum+=charAscii;
 		}
-		
 		return checksum;
 	}
 	
+	public void printStatistics()
+	{
+		System.out.println("Number of Lost Packets are:" + lostPackets);
+		System.out.println("Number of Lost Packets by host are:" + packetsLostHost);
+	}
 	
     // This is the constructor.  Don't touch!
     public StudentNetworkSimulator(int numMessages,
@@ -146,14 +156,17 @@ public class StudentNetworkSimulator extends NetworkSimulator
         	// Dealing with corruption later.
         	int checkSum = 0;
         	p = new Packet(seqNum, ackNum, checkSum, payload);
-        	System.out.println("Packet number is:" + packetNum);
-	    	this.startTimer(0, 15);
-	    	this.toLayer3(0, p);
+        	//System.out.println("Packet number is:" + packetNum);
+         	beforeSendTime = this.getTime();
+	    	this.toLayer3(1, p);
+	    	this.startTimer(0, timerInterrupt);
 	    	isAcknowledged = false;
     	}
     	else
     	{
     		System.out.println("Hello I am here.");
+    		packetNum++;
+    		packetsLostHost++;
     	}
     }
     
@@ -163,7 +176,8 @@ public class StudentNetworkSimulator extends NetworkSimulator
     // sent from the B-side.
     protected void aInput(Packet packet)
     {
-    	
+    	//increaseTimerInterrupt = Math.abs( timerInterrupt - (this.getTime() - beforeSendTime)) + 5.0;
+    	increaseTimerInterrupt = Math.abs( (this.getTime() - beforeSendTime));
     	if(packet.getAcknum() == expectedAckNum)
     	{
     		this.stopTimer(0);
@@ -186,10 +200,16 @@ public class StudentNetworkSimulator extends NetworkSimulator
     {
     	if(!isAcknowledged)
     	{
-    		this.startTimer(0, 15);
     		Packet packetSend = new Packet(p);
-    		this.toLayer3(0, packetSend);
-    		isAcknowledged = false;
+    		//System.out.println("TimeInterrupt before increasing: " + timerInterrupt);
+    		//System.out.println("Increase in Time: " + increaseTimerInterrupt);
+    		timerInterrupt = (timerInterrupt + increaseTimerInterrupt);
+    		//System.out.println("TimeInterrupt after increasing: " + timerInterrupt);
+    		beforeSendTime = this.getTime();
+    		this.toLayer3(1, packetSend);
+    		this.startTimer(0, timerInterrupt);
+    		//System.out.println("I am the interruppt");
+    		lostPackets++;
     	}
     }
     
@@ -204,18 +224,32 @@ public class StudentNetworkSimulator extends NetworkSimulator
     	expectedAckNum = 0;
     	isAcknowledged = true;
     	packetNum = 1;
+    	lostPackets = 0;
+    	timerInterrupt = 15.0; // Initial value
+    	increaseTimerInterrupt = 0.0;
+    	beforeSendTime = 0.0;
+    	packetsLostHost = 0;
     }
     
     // This routine will be called whenever a packet sent from the A-side 
     // (i.e. as a result of a toLayer3() being done by an A-side procedure)
-    // arrives at the B-side.  "packet" is the (possibly corrupted) packet
+    // arrives at the B-side. "packet" is the (possibly corrupted) packet
     // sent from the A-side.
     protected void bInput(Packet packet)
     {
-    	this.toLayer5(1, packet.getPayload());
+    	if(expectedSeqB == packet.getSeqnum())
+    	{
+        	this.toLayer5(1, packet.getPayload());
+        	
+        	if(expectedSeqB == 0)
+        		expectedSeqB = 1;
+        	else 
+        		expectedSeqB = 0;
+    	}
+    	
     	Packet packetSend;
     	packetSend = new Packet(packet.getSeqnum(), packet.getAcknum(), packet.getChecksum(),"Successful Receive");
-		this.toLayer3(1, packetSend);
+		this.toLayer3(0, packetSend);
     }
     
     // This routine will be called once, before any of your other B-side 
@@ -224,5 +258,6 @@ public class StudentNetworkSimulator extends NetworkSimulator
     // of entity B).
     protected void bInit()
     {
+    	expectedSeqB = 0;
     }
 }
