@@ -101,6 +101,7 @@ public class StudentNetworkSimulator extends NetworkSimulator
 	static boolean isAcknowledged;
 	static int packetNum; // For debugging purposes.
 	static int lostPackets;
+	static int corruptPackets;
 	static int packetsLostHost;
 	static double timerInterrupt; // Initial timer Interrupt
 	static double increaseTimerInterrupt;
@@ -114,14 +115,16 @@ public class StudentNetworkSimulator extends NetworkSimulator
 	int calculateChecksum(int seqNum, int ackNum, String payload)
 	{
 		int checksum = 0;
-		checksum = seqNum + ackNum;
+		checksum = (byte) (seqNum + ackNum);
 		char[] payloadCharacters = payload.toCharArray();
 		
 		for(int i = 0; i < payloadCharacters.length; i++)
 		{
-			byte charAscii = (byte)payloadCharacters[i];
+			int charAscii = payloadCharacters[i];
 			checksum+=charAscii;
+			//System.out.println("Checksum is: " + checksum);
 		}
+		//System.out.println("Checksum in function is: " + checksum);
 		return checksum;
 	}
 	
@@ -129,6 +132,7 @@ public class StudentNetworkSimulator extends NetworkSimulator
 	{
 		System.out.println("Number of Lost Packets are:" + lostPackets);
 		System.out.println("Number of Lost Packets by host are:" + packetsLostHost);
+		System.out.println("Number of corrupt Packets are:" + corruptPackets);
 	}
 	
     // This is the constructor.  Don't touch!
@@ -154,17 +158,19 @@ public class StudentNetworkSimulator extends NetworkSimulator
     	{
         	String payload = message.getData();
         	// Dealing with corruption later.
-        	int checkSum = 0;
-        	p = new Packet(seqNum, ackNum, checkSum, payload);
+        	int checksum = calculateChecksum(seqNum, ackNum, payload);
+        	//System.out.println("payload is: " + payload);
+        	//System.out.println("checksum is: " + (~checksum + checksum));
+        	p = new Packet(seqNum, ackNum, ~checksum, payload);
         	//System.out.println("Packet number is:" + packetNum);
          	beforeSendTime = this.getTime();
-	    	this.toLayer3(1, p);
+	    	this.toLayer3(0, p);
 	    	this.startTimer(0, timerInterrupt);
 	    	isAcknowledged = false;
     	}
     	else
     	{
-    		System.out.println("Hello I am here.");
+    		//System.out.println("Hello I am here.");
     		packetNum++;
     		packetsLostHost++;
     	}
@@ -176,11 +182,10 @@ public class StudentNetworkSimulator extends NetworkSimulator
     // sent from the B-side.
     protected void aInput(Packet packet)
     {
-    	//increaseTimerInterrupt = Math.abs( timerInterrupt - (this.getTime() - beforeSendTime)) + 5.0;
-    	increaseTimerInterrupt = Math.abs( (this.getTime() - beforeSendTime));
+		this.stopTimer(0);
     	if(packet.getAcknum() == expectedAckNum)
     	{
-    		this.stopTimer(0);
+    		increaseTimerInterrupt = Math.abs( (this.getTime() - beforeSendTime));
     		if(seqNum == 0)
     			seqNum = 1;
     		else
@@ -189,6 +194,15 @@ public class StudentNetworkSimulator extends NetworkSimulator
 	    	expectedAckNum = ackNum;
 	    	isAcknowledged = true;
         	packetNum++;
+    	}
+    	else
+    	{
+    		// packet is corrupt; send the packet again.
+    		Packet packetSend = new Packet(p);
+    		beforeSendTime = this.getTime();
+    		this.toLayer3(0, packetSend);
+    		this.startTimer(0, timerInterrupt);
+    		corruptPackets++;
     	}
     }
     
@@ -206,7 +220,7 @@ public class StudentNetworkSimulator extends NetworkSimulator
     		timerInterrupt = (timerInterrupt + increaseTimerInterrupt);
     		//System.out.println("TimeInterrupt after increasing: " + timerInterrupt);
     		beforeSendTime = this.getTime();
-    		this.toLayer3(1, packetSend);
+    		this.toLayer3(0, packetSend);
     		this.startTimer(0, timerInterrupt);
     		//System.out.println("I am the interruppt");
     		lostPackets++;
@@ -225,10 +239,11 @@ public class StudentNetworkSimulator extends NetworkSimulator
     	isAcknowledged = true;
     	packetNum = 1;
     	lostPackets = 0;
-    	timerInterrupt = 15.0; // Initial value
+    	timerInterrupt = 50.0; // Initial value
     	increaseTimerInterrupt = 0.0;
     	beforeSendTime = 0.0;
     	packetsLostHost = 0;
+    	corruptPackets = 0;
     }
     
     // This routine will be called whenever a packet sent from the A-side 
@@ -237,19 +252,34 @@ public class StudentNetworkSimulator extends NetworkSimulator
     // sent from the A-side.
     protected void bInput(Packet packet)
     {
-    	if(expectedSeqB == packet.getSeqnum())
-    	{
-        	this.toLayer5(1, packet.getPayload());
-        	
-        	if(expectedSeqB == 0)
-        		expectedSeqB = 1;
-        	else 
-        		expectedSeqB = 0;
-    	}
-    	
     	Packet packetSend;
     	packetSend = new Packet(packet.getSeqnum(), packet.getAcknum(), packet.getChecksum(),"Successful Receive");
-		this.toLayer3(0, packetSend);
+    	
+    	if(expectedSeqB == packet.getSeqnum())
+    	{
+    		int checksum = this.calculateChecksum(packet.getSeqnum(), packet.getAcknum(), packet.getPayload());
+    		//System.out.println("The payload is: " + (checksum + packet.getChecksum()));
+    		//System.out.println("The payload of packet is: " + packet.getChecksum());
+    		
+    		if( (checksum + packet.getChecksum()) == -1 ) // packet not corrupt
+    		{
+    			this.toLayer5(1, packet.getPayload());
+            	if(expectedSeqB == 0)
+            		expectedSeqB = 1;
+            	else 
+            		expectedSeqB = 0;
+    		}
+    		else
+    		{
+            	if(expectedSeqB == 0)
+            		packetSend = new Packet(packet.getSeqnum(), 1, packet.getChecksum(),"Packet is corrupt");
+            	else 
+            		packetSend = new Packet(packet.getSeqnum(), 0, packet.getChecksum(),"Packet is corrupt");
+    		}
+    		
+    	}
+    	
+		this.toLayer3(1, packetSend);
     }
     
     // This routine will be called once, before any of your other B-side 
