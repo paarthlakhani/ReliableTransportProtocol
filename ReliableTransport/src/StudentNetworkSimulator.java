@@ -1,5 +1,8 @@
 public class StudentNetworkSimulator extends NetworkSimulator
 {
+
+	// Things to do:
+	// Calculate the checksum at the receiver and estimate RTT 
     /*
      * Predefined Constants (static member variables):
      *
@@ -98,8 +101,10 @@ public class StudentNetworkSimulator extends NetworkSimulator
 	static int numPacketTransportA; // number of packets recevied by transport layer at A
 	static int numPacketTransportB;
 	static int numLostHost;
-	
+	static int receiveCorruptPack; // Number of corrupt ACKs 
 	static int expectedSeqB;
+	static double estimateRTT; // EstimatedRTT.
+	static double startTime;
 
     // Also add any necessary methods (e.g. checksum of a String)
 	int calculateChecksum(int seqNum, int ackNum, String payload)
@@ -129,8 +134,10 @@ public class StudentNetworkSimulator extends NetworkSimulator
 		System.out.println("Number of ACKS received by A are:" + ackA);
 		// subtraction of negative 1 is done because as soon as the last packet is sent to the receiver, the simulator stops.
 		System.out.println("Number of lost packets from A to B:" + (( numA + resendA + numCorrupt ) - ackB - 1 ));
-		System.out.println("Number of lost ACKS from B to A:" + (( ackB  - ackA) - numCorrupt));
-		System.out.println("Number of corrupt packets:" + numCorrupt);
+		System.out.println("Number of lost ACKS from B to A:" + (( ackB  - ackA) - numCorrupt - receiveCorruptPack)  );
+		System.out.println("Number of corrupt packets that is sent from the A to B:" + numCorrupt);
+		System.out.println("Number of corrupt ACKS that is sent from the B to A:" + receiveCorruptPack);
+		System.out.println("RTT is:" + estimateRTT);
 	}
 	
     // This is the constructor.  Don't touch!
@@ -158,6 +165,7 @@ public class StudentNetworkSimulator extends NetworkSimulator
         	p = new Packet(seqNum, ackNum, ~checksum, payload);
 	    	this.toLayer3(0, p);
 	    	this.startTimer(0, 750);
+			startTime = this.getTime();
 	    	isAcknowledged = false;
 	    	numA++;
 	    	numPacketTransportA++;
@@ -183,28 +191,44 @@ public class StudentNetworkSimulator extends NetworkSimulator
     // sent from the B-side.
     protected void aInput(Packet packet)
     {
-		this.stopTimer(0);
-    	if(packet.getAcknum() == expectedAckNum)
-    	{
-    		if(seqNum == 0)
-    			seqNum = 1;
-    		else
-    			seqNum = 0;
-	    	ackNum = seqNum;
-	    	expectedAckNum = ackNum;
-	    	isAcknowledged = true;
-	    	packetNumA++;
-	    	ackA++; // this was down in the if statement
-    	}
-    	else
-    	{
-    		// packet is corrupt; send the packet again.
-    		System.out.println("Packet got corrupted. Retransmitting the packet");
-    		Packet packetSend = new Packet(p);
-    		this.toLayer3(0, packetSend);
-    		this.startTimer(0, 750);
-    		numCorrupt++;
-    	}
+
+		int checksum = this.calculateChecksum(packet.getSeqnum(), packet.getAcknum(), packet.getPayload());
+		System.out.println("checksum of receiver at A: " + checksum);
+		System.out.println("checksum of receiver in the packet itself at A: " + packet.getChecksum());
+		// First checking if the received packet is corrupt or no
+		if(checksum + packet.getChecksum() == -1) // received packet is not corrupt
+		{
+			this.stopTimer(0);
+			if(packet.getAcknum() == expectedAckNum)
+			{
+				if(seqNum == 0)
+					seqNum = 1;
+				else
+					seqNum = 0;
+				
+				double sampleRTT = this.getTime() - startTime;
+				estimateRTT = 0.875*estimateRTT + 0.125*sampleRTT;
+				ackNum = seqNum;
+				expectedAckNum = ackNum;
+				isAcknowledged = true;
+				packetNumA++;
+				ackA++; // this was down in the if statement
+			}
+			else
+			{
+				// packet that is sent corrupt; send the packet again.
+				System.out.println("Packet got corrupted. Retransmitting the packet");
+				Packet packetSend = new Packet(p);
+				this.toLayer3(0, packetSend);
+				this.startTimer(0, 750);
+				numCorrupt++;
+			}
+		}
+		else
+		{
+			// received packet
+			receiveCorruptPack++;
+		}
     }
     
     // This routine will be called when A's timer expires (thus generating a 
@@ -220,6 +244,7 @@ public class StudentNetworkSimulator extends NetworkSimulator
     		Packet packetSend = new Packet(p);
     		this.toLayer3(0, packetSend);
     		this.startTimer(0, 1500);
+			startTime = this.getTime();
     		resendPacketA++;
     		resendA++;
     	}
@@ -244,6 +269,9 @@ public class StudentNetworkSimulator extends NetworkSimulator
     	numPacketAppA = 0;
     	numPacketTransportA = 0;
     	numLostHost = 0;
+		receiveCorruptPack = 0;
+		estimateRTT = 0.0;
+		startTime = 0.0;
     }
     
     // This routine will be called whenever a packet sent from the A-side 
@@ -253,7 +281,7 @@ public class StudentNetworkSimulator extends NetworkSimulator
     protected void bInput(Packet packet)
     {
     	Packet packetSend;
-    	packetSend = new Packet(packet.getSeqnum(), packet.getAcknum(), packet.getChecksum(),"Successful Receive");
+    	packetSend = new Packet(packet.getSeqnum(), packet.getAcknum(), packet.getChecksum(),"ACK");
     	
     	numPacketTransportB++;
     	
@@ -293,15 +321,10 @@ public class StudentNetworkSimulator extends NetworkSimulator
     	    	System.out.println("checksum is: " + packet.getChecksum());
     	    	System.out.println("Packet information at receiver ends:");
     	    	
-    	    	
-
-    	    	
-    	    	
-    	    	
             	if(expectedSeqB == 0)
-            		packetSend = new Packet(packet.getSeqnum(), 1, packet.getChecksum(),"Packet is corrupt");
+            		packetSend = new Packet(packet.getSeqnum(), 1, packet.getChecksum(),"Corrupt");
             	else 
-            		packetSend = new Packet(packet.getSeqnum(), 0, packet.getChecksum(),"Packet is corrupt");
+            		packetSend = new Packet(packet.getSeqnum(), 0, packet.getChecksum(),"Corrupt");
             	
             	
     	    	System.out.println("The opposite of the expected ACK is sent to the receiver to give an indication that packet is corrupted");
@@ -315,6 +338,9 @@ public class StudentNetworkSimulator extends NetworkSimulator
 
     	//}
     	ackB++;
+		int receiverCheck = this.calculateChecksum(packetSend.getSeqnum(), packetSend.getAcknum(), packetSend.getPayload());
+		System.out.println("checksum of receiver at B: " + ~receiverCheck);
+		packetSend.setChecksum(~receiverCheck);
 		this.toLayer3(1, packetSend);
     }
     
