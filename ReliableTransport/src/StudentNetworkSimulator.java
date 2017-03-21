@@ -80,7 +80,7 @@ public class StudentNetworkSimulator extends NetworkSimulator
      *          returns the Packet's payload
      *
      */
-	// Add any necessary class variables here.  Remember, you cannot use
+    // Add any necessary class variables here.  Remember, you cannot use
     // these variables to send messages error free!  They can only hold
     // state information for A or B.
 	Packet p;
@@ -123,8 +123,6 @@ public class StudentNetworkSimulator extends NetworkSimulator
 	
 	public void printStatistics()
 	{
-		/*System.out.println("Number of packets sent by A are:" + numA);
-		System.out.println("Number of packets resent by A are:" + resendA);*/
 		System.out.println("Number of packets sent from layer 5 of Host A: " + numPacketAppA);
 		System.out.println("Number of packets received and delivered to layer 5 of Host B: " + numPacketAppB);
 		System.out.println("Number of packets received and sent by transport layer of Host A: " + (numPacketTransportA));
@@ -171,13 +169,13 @@ public class StudentNetworkSimulator extends NetworkSimulator
 	    	numPacketTransportA++;
 	    	
 	    	// For Lost Packet output
-	    	System.out.println("Transmitting packet no:" + packetNumA);
+	    	/*System.out.println("Transmitting packet no:" + packetNumA);
 	    	System.out.println("Packet information at sender begins:");
 	    	System.out.println("Seq. No. is: " + seqNum);
 	    	System.out.println("Ack. No. is: " + ackNum);
 	    	System.out.println("payload is: " + payload);
 	    	System.out.println("checksum is: " + ~checksum);
-	    	System.out.println("Packet information at sender ends:");
+	    	System.out.println("Packet information at sender ends:");*/
     	}
     	else
     	{
@@ -193,8 +191,6 @@ public class StudentNetworkSimulator extends NetworkSimulator
     {
 
 		int checksum = this.calculateChecksum(packet.getSeqnum(), packet.getAcknum(), packet.getPayload());
-		System.out.println("checksum of receiver at A: " + checksum);
-		System.out.println("checksum of receiver in the packet itself at A: " + packet.getChecksum());
 		// First checking if the received packet is corrupt or no
 		if(checksum + packet.getChecksum() == -1) // received packet is not corrupt
 		{
@@ -244,7 +240,7 @@ public class StudentNetworkSimulator extends NetworkSimulator
     		Packet packetSend = new Packet(p);
     		this.toLayer3(0, packetSend);
     		this.startTimer(0, 1500);
-			startTime = this.getTime();
+		startTime = this.getTime();
     		resendPacketA++;
     		resendA++;
     	}
@@ -284,20 +280,17 @@ public class StudentNetworkSimulator extends NetworkSimulator
     	packetSend = new Packet(packet.getSeqnum(), packet.getAcknum(), packet.getChecksum(),"ACK");
     	
     	numPacketTransportB++;
-    	
-    	//if(expectedSeqB == packet.getSeqnum())
-    	//{
+
     		int checksum = this.calculateChecksum(packet.getSeqnum(), packet.getAcknum(), packet.getPayload());
     		if( (checksum + packet.getChecksum()) == -1 ) // packet not corrupt
     		{
-    			System.out.println("Packet is not corrupt");
-    			
-    	    	System.out.println("Packet information at receiver begins:");
-    	    	System.out.println("Seq. No. is: " + packet.getSeqnum());
-    	    	System.out.println("Ack. No. is: " + packet.getAcknum());
-    	    	System.out.println("payload is: " + packet.getPayload());
-    	    	System.out.println("checksum is: " + packet.getChecksum());
-    	    	System.out.println("Packet information at receiver ends:");
+		    /* System.out.println("Packet is not corrupt");	
+		    System.out.println("Packet information at receiver begins:");
+		    System.out.println("Seq. No. is: " + packet.getSeqnum());
+		    System.out.println("Ack. No. is: " + packet.getAcknum());
+		    System.out.println("payload is: " + packet.getPayload());
+		    System.out.println("checksum is: " + packet.getChecksum());
+		    System.out.println("Packet information at receiver ends:");*/
     	    	
     	    	
     			if(expectedSeqB == packet.getSeqnum())
@@ -314,12 +307,12 @@ public class StudentNetworkSimulator extends NetworkSimulator
     		{
     			System.out.println("Packet is corrupt");
     			
-    	    	System.out.println("Packet information at receiver begins:");
-    	    	System.out.println("Seq. No. is: " + packet.getSeqnum());
-    	    	System.out.println("Ack. No. is: " + packet.getAcknum());
-    	    	System.out.println("payload is: " + packet.getPayload());
-    	    	System.out.println("checksum is: " + packet.getChecksum());
-    	    	System.out.println("Packet information at receiver ends:");
+			/*System.out.println("Packet information at receiver begins:");
+			System.out.println("Seq. No. is: " + packet.getSeqnum());
+			System.out.println("Ack. No. is: " + packet.getAcknum());
+			System.out.println("payload is: " + packet.getPayload());
+			System.out.println("checksum is: " + packet.getChecksum());
+			System.out.println("Packet information at receiver ends:");*/
     	    	
             	if(expectedSeqB == 0)
             		packetSend = new Packet(packet.getSeqnum(), 1, packet.getChecksum(),"Corrupt");
@@ -327,19 +320,16 @@ public class StudentNetworkSimulator extends NetworkSimulator
             		packetSend = new Packet(packet.getSeqnum(), 0, packet.getChecksum(),"Corrupt");
             	
             	
-    	    	System.out.println("The opposite of the expected ACK is sent to the receiver to give an indication that packet is corrupted");
+		/*    	    	System.out.println("The opposite of the expected ACK is sent to the receiver to give an indication that packet is corrupted");
     	    	System.out.println("ACK structure begins:");
     	    	System.out.println("Seq. No. is: " + packetSend.getSeqnum());
     	    	System.out.println("Ack. No. is: " + packetSend.getAcknum());
     	    	System.out.println("payload is: " + packetSend.getPayload());
     	    	System.out.println("checksum is: " + packetSend.getChecksum());
-    	    	System.out.println("ACK structure ends:");
+    	    	System.out.println("ACK structure ends:");*/
     		}
-
-    	//}
     	ackB++;
 		int receiverCheck = this.calculateChecksum(packetSend.getSeqnum(), packetSend.getAcknum(), packetSend.getPayload());
-		System.out.println("checksum of receiver at B: " + ~receiverCheck);
 		packetSend.setChecksum(~receiverCheck);
 		this.toLayer3(1, packetSend);
     }
