@@ -12,7 +12,7 @@ public class Project
         double delay = -1.0;
         int trace = -1;
         long seed = -1;
-        String buffer = "";
+        String buffer = ""; 
     
         BufferedReader stdIn = new BufferedReader(
                                    new InputStreamReader(System.in));

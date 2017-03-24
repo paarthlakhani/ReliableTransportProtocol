@@ -225,6 +225,7 @@ public class StudentNetworkSimulator extends NetworkSimulator
 			// received packet
 			receiveCorruptPack++;
 		}
+		this.printStatistics();
     }
     
     // This routine will be called when A's timer expires (thus generating a 
