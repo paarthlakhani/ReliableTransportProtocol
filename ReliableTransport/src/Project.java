@@ -1,7 +1,5 @@
 import java.io.*;
 
-// I have altered the branch
-
 public class Project
 {
     public final static void main(String[] argv)
