@@ -1,5 +1,7 @@
 import java.io.*;
 
+// This is awesome. Let's do this!
+
 public class Project
 {
     public final static void main(String[] argv)
